@@ -203,6 +203,9 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
 
             logger.info("User not found. Creating new user.")
             
+            const hashedPassword = await bcrypt.hash(process.env.USER_DEFAULT_PASSWORD, 10);
+            const defaultUserName = await generateUniqueUsername(given_name, family_name || "");
+
             // create new user
             const newUser = await userModel.create({
                 firstName: given_name,
@@ -210,7 +213,8 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
                 email: email,
                 avatar: picture,
                 role: USER_ROLE.student,
-                userName: generateUniqueUsername(given_name, family_name || ""),
+                userName: defaultUserName,
+                password: hashedPassword,
                 googleId: sub
             });
 
@@ -321,7 +325,6 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
 
 const generateTokens = (userId: string) => {
 
-    console.log("printing hahah", process.env.JWT_SECRET, process.env.JWT_REFRESH_SECRET);
     const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15m" });
     const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
     return { accessToken, refreshToken };
