@@ -132,10 +132,10 @@ export const loginWithEmailAndPassword = async (req: Request, res: Response) : P
         }
 
         // compare the password given by user to the saved password
-        const userPasswordMatch = await bcrypt.compare(existingUser.password, password);
+        const userPasswordMatch = await bcrypt.compare(password, existingUser.password);
 
         // if invalid userpassword then password does not match
-        if(isInvalid(userPasswordMatch)) {
+        if(!userPasswordMatch) {
             return res.status(HTTP_STATUS_CODE.FORBIDDEN).json({ status: HTTP_STATUS_MESSAGES.FORBIDDEN, message: "Invalid credentials" })
         }
 
