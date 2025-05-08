@@ -71,7 +71,7 @@ export const signUpWithEmailAndPassword = async (req: Request, res: Response) : 
 
         // generate the accessToken and refreshToken for new user
         logger.info("User created. Generating the access and refresh token.");
-        const { accessToken, refreshToken } = generateTokens(newUser._id.toString())
+        const { accessToken, refreshToken } = generateTokens(newUser._id.toString(), USER_ROLE.student);
 
         newUser.refreshToken = refreshToken;
         await newUser.save();
@@ -101,6 +101,16 @@ export const signUpWithEmailAndPassword = async (req: Request, res: Response) : 
             { 
                 status: HTTP_STATUS_MESSAGES.SUCCESS, 
                 message: "User created!",
+                data: {
+                    firstName: newUser.firstName,
+                    lastName: newUser.lastName,
+                    email: newUser.email,
+                    userName: newUser.userName,
+                    refreshToken: refreshToken,
+                    token: accessToken,
+                    avatar: newUser.avatar, 
+                    newComer: false
+                }
             }
         )
 
@@ -141,8 +151,7 @@ export const loginWithEmailAndPassword = async (req: Request, res: Response) : P
 
         // generate the accessToken and refreshToken for new user
         logger.info("User exists. Generating the access and refresh token.");
-        const { accessToken, refreshToken } = generateTokens(existingUser._id.toString())
-
+        const { accessToken, refreshToken } = generateTokens(existingUser._id.toString(), existingUser.role);
         existingUser.refreshToken = refreshToken;
         await existingUser.save();
 
@@ -152,6 +161,15 @@ export const loginWithEmailAndPassword = async (req: Request, res: Response) : P
 
         return res.status(HTTP_STATUS_CODE.SUCCESS).json({ 
             status: HTTP_STATUS_MESSAGES.SUCCESS,  
+            data: {
+                firstName: existingUser.firstName,
+                lastName: existingUser.lastName,
+                refreshToken: refreshToken,
+                token: accessToken,
+                email: existingUser.email,
+                avatar: existingUser.avatar,
+                newComer: false
+            },
             message: "Login Successful!"
         });
 
@@ -220,7 +238,7 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
 
             // generate the accessToken and refreshToken for new user
             logger.info("User created. Generating the access and refresh token.");
-            const { accessToken, refreshToken } = generateTokens(newUser._id.toString())
+            const { accessToken, refreshToken } = generateTokens(newUser._id.toString(), USER_ROLE.student);
 
             newUser.refreshToken = refreshToken;
             await newUser.save();
@@ -253,9 +271,10 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
                         firstName: given_name, 
                         lastName: family_name, 
                         avatar: picture, 
-                        role: 'student', 
                         userName: newUser.userName,
-                        newComer: true
+                        newComer: true,
+                        token: accessToken,
+                        refreshToken: refreshToken,
                     } 
                 });
 
@@ -270,7 +289,7 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
             }
 
             // generate tokens for the user
-            const { accessToken, refreshToken } = generateTokens(existingUser._id.toString())
+            const { accessToken, refreshToken } = generateTokens(existingUser._id.toString(), existingUser.role)
 
             existingUser.refreshToken = refreshToken;
             await existingUser.save();
@@ -306,9 +325,10 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
                         lastName: existingUser.lastName, 
                         email: existingUser.email, 
                         avatar: existingUser.avatar, 
-                        role: existingUser.role, 
                         userName: existingUser.userName, 
-                        newComer: false 
+                        newComer: false,
+                        token: accessToken,
+                        refreshToken: refreshToken
                     }
                 }
             );
@@ -321,12 +341,25 @@ export const googleAuthLogin = async (req: Request, res: Response): Promise<any>
     }
 }
 
+export const logoutUser = async (req: Request, res: Response): Promise<any> => {
+    try {
+
+        res.clearCookie("jwtToken");
+        res.clearCookie("refreshToken");
+        return res.status(HTTP_STATUS_CODE.SUCCESS).json({ status: HTTP_STATUS_MESSAGES.SUCCESS, message: "Logged out successfully!" });
+
+    } catch (error) {
+        logger.error(`Error in ${logoutUser.name}`, error);
+        return res.status(HTTP_STATUS_CODE.INTERNAL_SERVER_ERROR).json({ status: HTTP_STATUS_MESSAGES.INTERNAL_SERVER_ERROR, message: "Some error occurred while logging out user!" });
+    }
+}
+
 /** UTILITY FUNCTIONS FOR FILE */
 
-const generateTokens = (userId: string) => {
+const generateTokens = (userId: string, role: string) => {
 
-    const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15m" });
-    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+    const accessToken = jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: "15m" });
+    const refreshToken = jwt.sign({ userId, role }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
     return { accessToken, refreshToken };
 };
 
